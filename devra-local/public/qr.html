@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ckb" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>کوارکۆدی مێزەکان — Devra</title>
+<link rel="stylesheet" href="style.css">
+<script src="vendor/qrcode.min.js"></script>
+</head>
+<body>
+<div class="qrtop noprint">
+  <h1 style="margin:0;font-size:22px;color:#7A2E2E">کوارکۆدی مینیوی مێزەکان</h1>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <input id="ip" placeholder="IPی ئامێرەکەت، نموونە 192.168.1.5">
+    <input id="count" type="number" min="1" max="60" value="12" style="width:70px">
+    <button onclick="build()">دروستکردن</button>
+    <button onclick="window.print()" style="background:#B8893F">چاپکردن</button>
+  </div>
+</div>
+<p style="max-width:780px;margin:0 auto 10px;padding:0 18px;font-size:13px;color:#6b5a4d" class="noprint">
+  IPـی ئامێرەکەت لەناو تێرمینالەکەدا (کاتێک سێرڤەرەکە دەست پێدەکات) دەبینیت، یان بە فەرمانی <code>ipconfig</code> (ویندۆز) یان <code>ifconfig</code> (مک/لینوکس).
+</p>
+<div class="qrgrid" id="grid"></div>
+<script>
+function build(){
+  const ip = document.getElementById('ip').value.trim() || location.hostname;
+  const port = location.port || '3000';
+  const n = parseInt(document.getElementById('count').value,10) || 12;
+  const base = `http://${ip}:${port}/`;
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  for(let i=1;i<=n;i++){
+    const card = document.createElement('div');
+    card.className = 'qrcard';
+    const box = document.createElement('div');
+    card.appendChild(box);
+    const lbl = document.createElement('p'); lbl.className='lbl'; lbl.textContent = 'مێزی '+i;
+    const sub = document.createElement('p'); sub.className='sub'; sub.textContent = 'سکان بکە بۆ مینیو';
+    card.appendChild(lbl); card.appendChild(sub);
+    grid.appendChild(card);
+    new QRCode(box, {text: base+'?table='+i, width:130, height:130, colorDark:'#2B1B14', colorLight:'#ffffff'});
+  }
+}
+build();
+</script>
+</body>
+</html>

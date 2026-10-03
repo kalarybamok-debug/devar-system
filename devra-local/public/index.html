@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ckb" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>مینیو — Devra</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">Devra</div>
+  <div class="offline-pill">● بەبێ ئینتەرنێت کاردەکات</div>
+</div>
+<div class="wrap">
+  <div id="tableLock"></div>
+  <div class="cat" id="cats"></div>
+  <div id="items"></div>
+</div>
+<div class="cartbar" id="cartbar" style="display:none">
+  <div class="inner" onclick="openCart()">
+    <div><b id="cartCount">0 بڕگە</b><br><span style="font-size:12px;opacity:.85">بۆ داواکاری کرتە بکە</span></div>
+    <div id="cartTotal" style="font-weight:700"></div>
+  </div>
+</div>
+<div class="sheet-bg" id="sheetBg" onclick="closeCart()"></div>
+<div class="sheet" id="cartSheet">
+  <h2>سەبەتەی داواکاری</h2>
+  <div id="cartRows"></div>
+  <div class="totalrow"><span>کۆی گشتی</span><span id="sheetTotal"></span></div>
+  <div class="field" id="tableField"><label>ژمارەی مێز</label><input id="tableNum" placeholder="نموونە: 5" inputmode="numeric"></div>
+  <button class="btn" onclick="placeOrder()">ناردنی داواکاری</button>
+  <button class="btn ghost" onclick="closeCart()">دووبارە سەیرکردن</button>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+const MENU = [
+ {cat:'خواردنەوەی گەرم', emoji:'☕', color:'#7A2E2E', items:[
+   {n:'قاوەی تورکی', p:3000},{n:'کاپوچینۆ', p:4500},{n:'لاتێ', p:4500},{n:'چای کوردی', p:1500}
+ ]},
+ {cat:'خواردنەوەی سارد', emoji:'🥤', color:'#B8893F', items:[
+   {n:'ئایس لاتێ', p:5000},{n:'لیمۆناد', p:4000},{n:'سمووزی میوە', p:6000}
+ ]},
+ {cat:'خۆراک', emoji:'🥐', color:'#5C7A5C', items:[
+   {n:'کرواسان', p:3500},{n:'چیزکەیک', p:6000},{n:'ساندویچ', p:7000}
+ ]},
+];
+let cart = {};
+let activeCat = 0;
+const urlTable = new URLSearchParams(location.search).get('table');
+if(urlTable){
+  document.getElementById('tableLock').innerHTML = `<div class="lockedtable">📍 مێزی ${urlTable}</div>`;
+  document.getElementById('tableField').style.display='none';
+}
+
+function renderCats(){
+  document.getElementById('cats').innerHTML = MENU.map((c,i)=>`<button class="${i===activeCat?'active':''}" onclick="setCat(${i})">${c.cat}</button>`).join('');
+}
+function setCat(i){ activeCat=i; renderCats(); renderItems(); }
+function renderItems(){
+  const c = MENU[activeCat];
+  document.getElementById('items').innerHTML = c.items.map(it=>{
+    const q = cart[it.n]?.q || 0;
+    return `<div class="item">
+      <div class="thumb" style="background:${c.color}">${c.emoji}</div>
+      <div class="info"><p class="name">${it.n}</p><p class="price">${it.p.toLocaleString()} د.ع</p></div>
+      <div class="qty">
+        ${q>0?`<button onclick="changeQty('${it.n}',${it.p},-1)">−</button><span>${q}</span>`:''}
+        <button class="add" onclick="changeQty('${it.n}',${it.p},1)">+</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function changeQty(n,p,d){
+  if(!cart[n]) cart[n] = {n,p,q:0};
+  cart[n].q += d;
+  if(cart[n].q<=0) delete cart[n];
+  renderItems(); renderCartBar();
+}
+function cartItems(){ return Object.values(cart); }
+function cartTotal(){ return cartItems().reduce((s,i)=>s+i.p*i.q,0); }
+function renderCartBar(){
+  const items = cartItems();
+  const bar = document.getElementById('cartbar');
+  if(items.length===0){ bar.style.display='none'; return; }
+  bar.style.display='flex';
+  document.getElementById('cartCount').textContent = items.reduce((s,i)=>s+i.q,0)+' بڕگە';
+  document.getElementById('cartTotal').textContent = cartTotal().toLocaleString()+' د.ع';
+}
+function openCart(){
+  document.getElementById('cartRows').innerHTML = cartItems().map(i=>
+    `<div class="cart-row"><span>${i.n} × ${i.q}</span><span>${(i.p*i.q).toLocaleString()} د.ع</span></div>`
+  ).join('') || '<p class="empty">سەبەتە بەتاڵە</p>';
+  document.getElementById('sheetTotal').textContent = cartTotal().toLocaleString()+' د.ع';
+  document.getElementById('sheetBg').classList.add('show');
+  document.getElementById('cartSheet').classList.add('show');
+}
+function closeCart(){
+  document.getElementById('sheetBg').classList.remove('show');
+  document.getElementById('cartSheet').classList.remove('show');
+}
+function placeOrder(){
+  const items = cartItems();
+  if(items.length===0) return;
+  const table = urlTable || document.getElementById('tableNum').value || '—';
+  socket.emit('order:place', { table, items, total: cartTotal() });
+  cart = {};
+  renderItems(); renderCartBar(); closeCart();
+  alert('داواکارییەکەت نێردرا بۆ کاشێر! چاوەڕێی ئامادەکردن بکە 🙏');
+}
+renderCats(); renderItems(); renderCartBar();
+</script>
+</body>
+</html>

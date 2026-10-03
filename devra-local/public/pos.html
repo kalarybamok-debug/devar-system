@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ckb" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>پانێلی کاشێر — Devra</title>
+<link rel="stylesheet" href="style.css">
+<style>@media print{ body *{visibility:hidden;} #receipt,#receipt *{visibility:visible;} #receipt{position:absolute;top:0;right:0;width:100%;} }</style>
+</head>
+<body>
+<div class="topbar noprint">
+  <div class="brand">Devra — کاشێر</div>
+  <button class="topctrl" onclick="if(confirm('داواکاری تەواوبووەکان بسڕدرێتەوە؟')) socket.emit('order:clear-done')">سڕینەوەی تەواوبووەکان</button>
+</div>
+<div class="wrap wide">
+  <h2 style="margin:16px 0">داواکارییەکان</h2>
+  <div id="posList" class="pos-cols"></div>
+  <div id="posEmpty" class="posempty" style="display:none">هیچ داواکارییەک نییە. چاوەڕێی کڕیار بکە.</div>
+</div>
+<div id="receipt" style="display:none"></div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+let orders = [];
+socket.on('orders:sync', (o)=>{ orders = o; renderPOS(); });
+
+function renderPOS(){
+  const list = document.getElementById('posList');
+  const empty = document.getElementById('posEmpty');
+  if(orders.length===0){ list.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  list.innerHTML = orders.map(o=>{
+    const badge = o.status==='new'?'<span class="badge new">نوێ</span>':o.status==='ready'?'<span class="badge ready">ئامادەیە</span>':'<span class="badge done">تەواوبوو</span>';
+    return `<div class="ord">
+      <div class="head"><span class="table">مێزی ${o.table}</span>${badge}</div>
+      <div class="time">${o.time}</div>
+      ${o.items.map(i=>`<div class="line"><span>${i.n} × ${i.q}</span><span>${(i.p*i.q).toLocaleString()}</span></div>`).join('')}
+      <div class="total"><span>کۆی گشتی</span><span>${o.total.toLocaleString()} د.ع</span></div>
+      <div class="actions">
+        ${o.status==='new'?`<button class="a-ready" onclick="setStatus(${o.id},'ready')">ئامادەیە</button>`:''}
+        ${o.status==='ready'?`<button class="a-done" onclick="setStatus(${o.id},'done')">تەواوبوو</button>`:''}
+        <button class="a-print" onclick="printOrder(${o.id})">چاپکردن</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function setStatus(id,status){ socket.emit('order:status', {id, status}); }
+function printOrder(id){
+  const o = orders.find(x=>x.id===id);
+  if(!o) return;
+  document.getElementById('receipt').innerHTML = `
+    <div style="font-family:monospace;padding:10px;width:260px">
+      <h3 style="text-align:center;margin:0 0 6px">Devra</h3>
+      <p style="text-align:center;margin:0 0 10px">مێزی ${o.table} — ${o.time}</p>
+      <hr>
+      ${o.items.map(i=>`<div style="display:flex;justify-content:space-between"><span>${i.n} ×${i.q}</span><span>${i.p*i.q}</span></div>`).join('')}
+      <hr>
+      <div style="display:flex;justify-content:space-between;font-weight:bold"><span>کۆی گشتی</span><span>${o.total} د.ع</span></div>
+    </div>`;
+  window.print();
+}
+</script>
+</body>
+</html>
